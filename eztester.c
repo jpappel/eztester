@@ -1,8 +1,8 @@
 #include "eztester.h"
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <unistd.h>
 
 eztester_list *eztester_create_list(const size_t capacity) {
@@ -30,7 +30,8 @@ eztester_list *eztester_create_list(const size_t capacity) {
 }
 void eztester_register(eztester_list *test_list, const eztester_test new_test) {
   if (test_list->capacity == 0) {
-    test_list->capacity = 1;
+    test_list->tests = realloc(test_list->tests, 2 * sizeof(eztester_test));
+    test_list->capacity = 2;
   }
   if (test_list->capacity <= test_list->length + 1) {
     test_list->capacity *= 2;
@@ -101,13 +102,13 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
   print_test_results(length, pass_count, length);
 }
 
-void eztester_test_print(const char *format, ...){
-    va_list args;
-    va_start(args, format);
-    printf(">  ");
-    vprintf(format, args);
-    printf("\n");
-    va_end(args);
+void eztester_test_print(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  printf(">  ");
+  vprintf(format, args);
+  printf("\n");
+  va_end(args);
 }
 
 void eztester_clear_list(eztester_list *test_list) {
@@ -117,8 +118,8 @@ void eztester_clear_list(eztester_list *test_list) {
 }
 
 void eztester_destroy_list(eztester_list *test_list) {
-    eztester_clear_list(test_list);
-    free(test_list);
+  eztester_clear_list(test_list);
+  free(test_list);
 }
 
 eztester_status eztester_always_pass_test() { return TEST_PASS; }
