@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS :=
+CFLAGS := -Wall
 
 SRCS := eztester.c
 OBJS := eztester.o eztester_debug.o

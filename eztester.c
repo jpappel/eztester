@@ -44,7 +44,6 @@ void eztester_register(eztester_list *test_list, const eztester_test new_test) {
 
 void print_test_results(const size_t tests_run, const size_t tests_passed,
                         const size_t num_tests) {
-  const char *pass_str;
   printf("--------\nRan %zu of %zu tests\n", tests_run, num_tests);
   if (tests_run == num_tests && tests_run == tests_passed) {
     printf("All tests passed :)\n");
