@@ -3,15 +3,20 @@ CFLAGS := -Wall
 
 SRCS := eztester.c
 OBJS := eztester.o eztester_debug.o
-STATIC_LIBS := eztester.a eztester_debug.a
+STATIC_LIBS := libeztester.a libeztester_debug.a
+
+.PHONY: all clean
 
 all: $(STATIC_LIBS)
 
 eztester.o: eztester.c
-	$(CC) -c $(CFLAGS) -o $@ $<
+	$(CC) -c $(CFLAGS) -O3 -o $@ $<
 
 eztester_debug.o: eztester.c
-	$(CC) -c -ggdb $(CFLAGS) -o $@ $<
+	$(CC) -c -ggdb -Og $(CFLAGS) -o $@ $<
 
-%.a: %.o
+lib%.a: %.o
 	ar rcs $@ $<
+
+clean:
+	rm $(STATIC_LIBS) $(OBJS)
