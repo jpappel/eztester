@@ -24,6 +24,7 @@ eztester_list *eztester_create_list(const size_t capacity) {
     free(list);
     return NULL;
   }
+  list->tests = tests;
 
   list->capacity = capacity;
   return list;
