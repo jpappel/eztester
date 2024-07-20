@@ -5,7 +5,7 @@ A barebones testing library for C
 ## TODO
 
 * [ ] makefile
-    * [ ] static library target
+    * [x] static library target
     * [ ] dynamic library target
     * [ ] header-only target
 * [ ] colorized output
