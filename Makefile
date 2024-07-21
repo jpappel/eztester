@@ -1,19 +1,23 @@
 CC := gcc
 CFLAGS := -Wall
+DEBUG_FLAGS := -ggdb -Og
 
 SRCS := eztester.c
 OBJS := eztester.o eztester_debug.o
 STATIC_LIBS := libeztester.a libeztester_debug.a
+DYNAMIC_LIBS := libeztester.a libeztester_debug.a
 
-.PHONY: all clean
+.PHONY: all static clean
 
 all: $(STATIC_LIBS)
 
-eztester.o: eztester.c
+static: $(STATIC_LIBS)
+
+%.o: %.c
 	$(CC) -c $(CFLAGS) -O3 -o $@ $<
 
-eztester_debug.o: eztester.c
-	$(CC) -c -ggdb -Og $(CFLAGS) -o $@ $<
+%_debug.o: %.c
+	$(CC) -c $(DEBUG_FLAGS) $(CFLAGS) -o $@ $<
 
 lib%.a: %.o
 	ar rcs $@ $<
