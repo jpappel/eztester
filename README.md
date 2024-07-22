@@ -55,20 +55,40 @@ eztester_status sample_test(){
     }
 }
 
+eztester_status sample_shell_test(){
+    // eztester_shell is a wrapper function for `system`
+    // see `eztester.h` for more info
+    int status = eztester_shell("curl invalid.url");
+    if (status == 0){
+        return TEST_PASS;
+    }
+    else if (status == 6){
+        return TEST_WARNING;
+    }
+    else if (status == 127){
+        return TEST_ERROR;
+    }
+    else {
+        return TEST_FAIL;
+    }
+}
+
 int main(int argc, char* argv[]){
-    eztester_list *test_list = ezterster_create_list(2);
+    eztester_list *tests = ezterster_create_list(2);
 
     // runners that always return the same status are provided
-    eztester_register(test_list, (eztester_test){eztester_always_pass, "Always Pass"});
-    eztester_register(test_list, (eztester_test){sample_test, "Sample Test"}); // our test, can be defined in a different translation unit
+    eztester_register(tests, (eztester_test){eztester_always_pass, "Always Pass"});
+    eztester_register(tests, (eztester_test){sample_test, "Sample Test"}); // our test, can be defined in a different translation unit
 
     // a list will resize on register when it doesn't have capacity
-    eztester_register(test_list, (eztester_test){eztester_always_fail, "Always Fail"});
-    eztester_register(test_list, (eztester_test){eztester_always_warn, "Always Warn"});
+    eztester_register(tests, (eztester_test){eztester_always_fail, "Always Fail"});
+    eztester_register(tests, (eztester_test){eztester_always_warn, "Always Warn"});
+    
+    eztester_register(tests, (eztester_test){sample_shell_test, "Check a non existent url");
 
-    eztester_run(test_list, CONTINUE_ALL);
+    eztester_run(tests, CONTINUE_ALL);
 
-    eztester_destroy_list(test_list);
+    eztester_destroy_list(tests);
     return 0;
 }
 ```
