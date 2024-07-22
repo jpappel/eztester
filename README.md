@@ -23,6 +23,7 @@ After configuring your project, create a program to run your tests.
 
 <details>
 <summary>Example Program</summary>
+
 ```c
 #include "eztester.h"
 
@@ -70,6 +71,7 @@ int main(int argc, char* argv[]){
     return 0;
 }
 ```
+
 </details>
 
 ### Static
