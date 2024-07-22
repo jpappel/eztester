@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _EZTESTER_H
+#define _EZTESTER_H
 
 #include <stddef.h>
 #include <stdio.h>
@@ -63,3 +64,5 @@ eztester_status eztester_always_warn_test();
 eztester_status eztester_always_fail_test();
 // always return error
 eztester_status eztester_always_error_test();
+
+#endif

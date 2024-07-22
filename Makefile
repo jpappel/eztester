@@ -11,11 +11,11 @@ DYNAMIC_OBJS := $(addprefix $(BUILD_DIR)/dynamic/,$(SRCS:.c=.o))
 STATIC_LIBS := $(BUILD_DIR)/static/libeztester.a $(BUILD_DIR)/static/libeztester_debug.a
 DYNAMIC_LIBS := $(BUILD_DIR)/dynamic/libeztester.so $(BUILD_DIR)/dynamic/libeztester_debug.so
 
-all: $(STATIC_LIBS)
+dynamic_so := -Wl,-soname,libeztester.so.1
 
 .PHONY: all static dynamic clean info
 
-all: $(STATIC_LIBS) $(DYNAMIC_LIBS)
+all: static dynamic header
 
 #static
 static: $(STATIC_LIBS)
@@ -53,6 +53,18 @@ $(BUILD_DIR)/dynamic/%_debug.o: %.c $(BUILD_DIR)/dynamic
 $(BUILD_DIR)/dynamic:
 	mkdir -p $@
 
+# header
+header: $(BUILD_DIR)/header/eztester.h
+
+$(BUILD_DIR)/header/eztester.h: eztester.h $(SRCS) $(BUILD_DIR)/header
+	cat $< > $@
+	echo "#ifdef EZTESTER_IMPLEMENTATION" >> $@
+	cat $(SRCS) >> $@
+	echo "#endif" >> $@
+
+$(BUILD_DIR)/header:
+	mkdir -p $@
+
 info:
 	@echo "SRCS: $(SRCS)"
 	@echo "STATIC_OBJS: $(STATIC_OBJS)"
@@ -62,4 +74,4 @@ info:
 
 
 clean:
-	rm -rf $(BUILD_DIR)/static $(BUILD_DIR)/dynamic
+	rm -rf $(BUILD_DIR)/*

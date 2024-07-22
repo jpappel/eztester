@@ -13,19 +13,19 @@
 
 #include <stdbool.h>
 
-struct shared_mem {
+struct _ez_shared_mem {
   int work_in_queue : 1;
   eztester_status status : 2;
   eztester_behavior behavior : 2;
   size_t index;
 };
 
-volatile sig_atomic_t child_premature_exit = 0;
-volatile sig_atomic_t child_premature_exit_signal;
-volatile sig_atomic_t child_premature_exit_status = 0;
+volatile sig_atomic_t _ez_child_premature_exit = 0;
+volatile sig_atomic_t _ez_child_premature_exit_signal;
+volatile sig_atomic_t _ez_child_premature_exit_status = 0;
 
-void print_test_results(const size_t tests_run, const size_t tests_passed,
-                        const size_t num_tests) {
+void _ez_print_test_results(const size_t tests_run, const size_t tests_passed,
+                            const size_t num_tests) {
   printf("--------\nRan %zu of %zu tests\n", tests_run, num_tests);
   if (tests_run == num_tests && tests_run == tests_passed) {
     printf("All tests passed :)\n");
@@ -36,27 +36,28 @@ void print_test_results(const size_t tests_run, const size_t tests_passed,
   }
 }
 
-void premature_exit(const char *message, const pid_t worker,
-                    const size_t current_test, const size_t tests_passed,
-                    const size_t num_tests) {
+void _ez_premature_exit(const char *message, const pid_t worker,
+                        const size_t current_test, const size_t tests_passed,
+                        const size_t num_tests) {
   fprintf(stderr, "%s\n", message);
-  if (child_premature_exit) {
-    if (child_premature_exit_status != 0) {
+  if (_ez_child_premature_exit) {
+    if (_ez_child_premature_exit_status != 0) {
       fprintf(stderr, "Worker Process exited with status: %d\n",
-              child_premature_exit_status);
+              _ez_child_premature_exit_status);
     }
-    if (child_premature_exit_signal > 0) {
+    if (_ez_child_premature_exit_signal > 0) {
       fprintf(stderr, "Worker Process exited because of signal: %s",
-              strsignal(child_premature_exit_signal));
+              strsignal(_ez_child_premature_exit_signal));
     }
   }
   kill(worker, SIGTERM);
   wait(NULL);
-  print_test_results(current_test, tests_passed, num_tests);
+  _ez_print_test_results(current_test, tests_passed, num_tests);
   exit(1);
 }
 
-void worker(volatile struct shared_mem *mem, const eztester_list *list) {
+void _ez_worker(volatile struct _ez_shared_mem *mem,
+                const eztester_list *list) {
   while (mem->index < list->length) {
     // wait for work
     while (!mem->work_in_queue) {
@@ -76,22 +77,22 @@ void worker(volatile struct shared_mem *mem, const eztester_list *list) {
   exit(0);
 }
 
-void chld_handler(int signum) {
+void _ez_chld_handler(int signum) {
   int status;
   pid_t pid;
-  child_premature_exit = 1;
+  _ez_child_premature_exit = 1;
 
   while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
     if (WIFEXITED(status)) {
-      child_premature_exit_status = WEXITSTATUS(status);
+      _ez_child_premature_exit_status = WEXITSTATUS(status);
     } else if (WIFSIGNALED(status)) {
-      child_premature_exit_signal = WTERMSIG(status);
+      _ez_child_premature_exit_signal = WTERMSIG(status);
     }
   }
 }
 
 void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
-  const size_t shm_size = sizeof(struct shared_mem);
+  const size_t shm_size = sizeof(struct _ez_shared_mem);
   int shm_fd = shm_open("/test_queue", O_RDWR | O_CREAT, 0666);
   if (shm_fd == -1) {
     perror("shm_open");
@@ -110,7 +111,7 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
     exit(1);
   }
 
-  struct shared_mem *mem = shm_ptr;
+  struct _ez_shared_mem *mem = shm_ptr;
   mem->index = 0;
   mem->work_in_queue = false;
   mem->behavior = behavior;
@@ -121,7 +122,7 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
     exit(1);
   }
   if (pid == 0) {
-    worker(mem, test_list);
+    _ez_worker(mem, test_list);
   }
 
   eztester_status status;
@@ -130,7 +131,7 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
   size_t pass_count = 0;
 
   // set child signal handler
-  signal(SIGCHLD, chld_handler);
+  signal(SIGCHLD, _ez_chld_handler);
 
   for (size_t i = 0; i < test_list->length; i++) {
     test = test_list->tests[i];
@@ -140,15 +141,15 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
 
     printf("[%03zu/%03zu] Testing: %s\n", i + 1, length, test.name);
     fflush(stdout);
-    if (child_premature_exit) {
-      premature_exit("Worker Process ended prematurely!", pid, i + 1,
-                     pass_count, length);
+    if (_ez_child_premature_exit) {
+      _ez_premature_exit("Worker Process ended prematurely!", pid, i + 1,
+                         pass_count, length);
     }
     while (mem->work_in_queue) {
       usleep(1000 * 50);
-      if (child_premature_exit) {
-        premature_exit("Worker Process ended prematurely!", pid, i + 1,
-                       pass_count, length);
+      if (_ez_child_premature_exit) {
+        _ez_premature_exit("Worker Process ended prematurely!", pid, i + 1,
+                           pass_count, length);
       }
     }
     status = mem->status;
@@ -162,28 +163,28 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
     case TEST_WARNING:
       printf("[%03zu/%03zu] %s Result: Warning\n", i + 1, length, test.name);
       if (behavior == EXIT_ON_WARNING) {
-        premature_exit("Warning occured, Exitting", pid, i + 1, pass_count,
-                       length);
+        _ez_premature_exit("Warning occured, Exitting", pid, i + 1, pass_count,
+                           length);
       }
       break;
 
     case TEST_FAIL:
       printf("[%03zu/%03zu] %s Result: Fail\n", i + 1, length, test.name);
       if (behavior != CONTINUE_ALL) {
-        premature_exit("Failure occured, Exitting", pid, i + 1, pass_count,
-                       length);
+        _ez_premature_exit("Failure occured, Exitting", pid, i + 1, pass_count,
+                           length);
       }
       break;
 
     case TEST_ERROR:
       printf("[%03zu/%03zu] %s Result: Error\n", i + 1, length, test.name);
-      premature_exit("Fatal Error occured! Exiting", pid, i + 1, pass_count,
-                     length);
+      _ez_premature_exit("Fatal Error occured! Exiting", pid, i + 1, pass_count,
+                         length);
       break;
     }
   }
   signal(SIGCHLD, SIG_DFL);
-  print_test_results(length, pass_count, length);
+  _ez_print_test_results(length, pass_count, length);
 
   // unmap memory
   if (munmap(shm_ptr, shm_size) == -1) {
