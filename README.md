@@ -19,6 +19,7 @@ By default `make` builds all targets in `build/(static|dynamic|header)`
 ## Usage
 
 EZ-Tester can be used as static, dynamic or header only library.
+Make sure to copy `eztester.h` somewhere in your include path.
 After configuring your project, create a program to run your tests.
 
 <details>
@@ -79,26 +80,33 @@ int main(int argc, char* argv[]){
 After building, copy the static libraries into your project
 
 ```bash
-cp libeztester.a libeztester_debug.a $YOUR_PROJECT_DIRECORY/libs
+cp build/static/* $YOUR_PROJECT_DIRECORY/libs
 ```
 
 When building make sure to add `-Llibs -leztester` to your linker flags
 
 For example:
 ```bash
-gcc -o bird_tester tests/bird_tests.c src/bird.c -Llibs -leztester
+gcc -o tests test/test.c src/module.c -Llibs -leztester
 ```
-
 
 ### Dynamic
 
 ### Header
 
+To use the header-only implementation replace the include in your programs entry point to:
+
+```c
+#define EZTESTER_IMPLEMENTATION
+#include "eztester.h"
+#undef EZTESTER_IMPLEMENTATION
+```
+
 ## TODO
 
-* [ ] makefile
+* [x] makefile
     * [x] static library target
     * [x] dynamic library target
-    * [ ] header-only target
+    * [x] header-only target
 * [ ] colorized output
 * [ ] `run_shell_script`
