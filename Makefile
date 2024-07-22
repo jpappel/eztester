@@ -59,7 +59,7 @@ header: $(BUILD_DIR)/header/eztester.h
 $(BUILD_DIR)/header/eztester.h: eztester.h $(SRCS) $(BUILD_DIR)/header
 	cat $< > $@
 	echo "#ifdef EZTESTER_IMPLEMENTATION" >> $@
-	cat $(SRCS) >> $@
+	sed '/include "eztester.h"/d' $(SRCS) >> $@
 	echo "#endif" >> $@
 
 $(BUILD_DIR)/header:
