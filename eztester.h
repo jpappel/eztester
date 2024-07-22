@@ -45,14 +45,13 @@ void eztester_log(const char *__restrict format, ...);
 // run all tests with a list with a given behavior
 void eztester_run(eztester_list *test_list, const eztester_behavior behavior);
 
-/* Run a shell script found at file_path, it can read in from input and write to
- * output
+/* Wrapper for `system` function
  *
- * Returns exit code of the command
- * UNIMPLEMENTED!
+ * if command is null return the availability of a shell (negated result of system's behavior)
+ *
+ * If command is not null return the exit status of the process
  */
-unsigned char ezteser_run_shell_script(const char *file_path, FILE *input,
-                                       FILE *output);
+int eztester_shell(const char *command);
 
 // tests that always return an eztester_status
 

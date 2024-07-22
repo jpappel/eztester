@@ -166,6 +166,7 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
         _ez_premature_exit("Warning occured, Exitting", pid, i + 1, pass_count,
                            length);
       }
+      pass_count++;
       break;
 
     case TEST_FAIL:
@@ -196,6 +197,28 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
     perror("shm_unlink");
     exit(1);
   }
+}
+
+int eztester_shell(const char *command) {
+  int result;
+  if (command == NULL) {
+    eztester_log("Recieved NULL as command, checking for shell availability");
+    result = !system(command);
+    eztester_log("Shell %s available", (result) ? "is not" : "is");
+    return result;
+  }
+
+  eztester_log("Executing %s", command);
+  result = system(command);
+  if(result == -1){
+      eztester_log("Error with child process");
+      perror(command);
+  }
+  else {
+      eztester_log("Process exited with a status of %d", result);
+  }
+
+  return result;
 }
 
 void eztester_log(const char *restrict format, ...) {
