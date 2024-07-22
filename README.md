@@ -20,8 +20,9 @@ By default `make` builds all targets in `build/(static|dynamic|header)`
 
 EZ-Tester can be used as static, dynamic or header only library.
 After configuring your project, create a program to run your tests.
-Here is an example tester program below:
 
+<details>
+<summary>Example Program</summary>
 ```c
 #include "eztester.h"
 
@@ -69,6 +70,7 @@ int main(int argc, char* argv[]){
     return 0;
 }
 ```
+</details>
 
 ### Static
 
