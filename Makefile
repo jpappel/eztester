@@ -5,7 +5,7 @@ DEBUG_FLAGS := -ggdb -Og
 VERSION:= 0.1
 
 BUILD_DIR := build
-SRCS := eztester.c test_list.c
+SRCS := eztester.c eztester_list.c
 STATIC_OBJS := $(addprefix $(BUILD_DIR)/static/,$(SRCS:.c=.o))
 DYNAMIC_OBJS := $(addprefix $(BUILD_DIR)/dynamic/,$(SRCS:.c=.o))
 STATIC_LIBS := $(BUILD_DIR)/static/libeztester.a $(BUILD_DIR)/static/libeztester_debug.a

@@ -197,7 +197,7 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
   }
 }
 
-void eztester_test_print(const char *restrict format, ...) {
+void eztester_log(const char *restrict format, ...) {
   va_list args;
   va_start(args, format);
   printf(">  ");

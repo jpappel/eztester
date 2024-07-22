@@ -39,8 +39,8 @@ void eztester_clear_list(eztester_list *test_list);
 // clears a list and free's the list
 void eztester_destroy_list(eztester_list *test_list);
 
-// print during a test
-void eztester_test_print(const char *__restrict format, ...);
+// log info during a test
+void eztester_log(const char *__restrict format, ...);
 // run all tests with a list with a given behavior
 void eztester_run(eztester_list *test_list, const eztester_behavior behavior);
 
