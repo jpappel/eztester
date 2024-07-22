@@ -3,12 +3,17 @@
 #include <stddef.h>
 #include <stdio.h>
 
-// possible results of a test
+// possible results of a test.
 // error is always fatal
-typedef enum { TEST_PASS, TEST_FAIL, TEST_WARNING, TEST_ERROR } eztester_status;
+typedef enum { TEST_PASS, TEST_WARNING, TEST_FAIL, TEST_ERROR } eztester_status;
 
+/* how eztester should behave when encountering a non passing test.
+ *
+ * EXIT_ON_WARNING implies EXIT_ON_FAIL
+ */
 typedef enum { EXIT_ON_WARNING, CONTINUE_ALL, EXIT_ON_FAIL } eztester_behavior;
 
+// a single individual test to be ran
 typedef eztester_status(eztester_runner)();
 
 typedef struct {
@@ -22,13 +27,22 @@ typedef struct {
   size_t capacity;
 } eztester_list;
 
+// create a list with a given capacity
 eztester_list *eztester_create_list(const size_t capacity);
+/* add a test to a list.
+ * the same test can be registered multiple times.
+ * will resize the list as necessary
+ */
 void eztester_register(eztester_list *test_list, const eztester_test new_test);
-void eztester_run(eztester_list *test_list, const eztester_behavior behavior);
+// remove all tests from a list but do not free the list itself
 void eztester_clear_list(eztester_list *test_list);
+// clears a list and free's the list
 void eztester_destroy_list(eztester_list *test_list);
 
-void eztester_test_print(const char *format, ...);
+// print during a test
+void eztester_test_print(const char *__restrict format, ...);
+// run all tests with a list with a given behavior
+void eztester_run(eztester_list *test_list, const eztester_behavior behavior);
 
 /* Run a shell script found at file_path, it can read in from input and write to
  * output
