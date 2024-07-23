@@ -117,7 +117,7 @@ void _ez_worker(volatile struct _ez_shared_mem *mem,
     // check if worker should die
     if (mem->status == TEST_ERROR ||
         (mem->status == TEST_FAIL && mem->behavior != CONTINUE_ALL) ||
-        (mem->status == TEST_WARNING && mem->behavior == EXIT_ON_FAIL)) {
+        (mem->status == TEST_WARNING && mem->behavior == EXIT_ON_WARNING)) {
       exit(1);
     }
 
@@ -189,12 +189,14 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
 
     switch (status) {
     case TEST_PASS:
-      printf("[%03zu/%03zu] %s Result: Pass\n", results.current, results.total, test.name);
+      printf("[%03zu/%03zu] %s Result: Pass\n", results.current, results.total,
+             test.name);
       results.passed++;
       break;
 
     case TEST_WARNING:
-      printf("[%03zu/%03zu] %s Result: Warning\n", results.current, results.total, test.name);
+      printf("[%03zu/%03zu] %s Result: Warning\n", results.current,
+             results.total, test.name);
       if (behavior == EXIT_ON_WARNING) {
         _ez_premature_exit("Warning occured, Exitting", pid, mem, results);
       }
@@ -202,14 +204,16 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
       break;
 
     case TEST_FAIL:
-      printf("[%03zu/%03zu] %s Result: Fail\n", results.current, results.total, test.name);
+      printf("[%03zu/%03zu] %s Result: Fail\n", results.current, results.total,
+             test.name);
       if (behavior != CONTINUE_ALL) {
         _ez_premature_exit("Failure occured, Exitting", pid, mem, results);
       }
       break;
 
     case TEST_ERROR:
-      printf("[%03zu/%03zu] %s Result: Error\n", results.current, results.total, test.name);
+      printf("[%03zu/%03zu] %s Result: Error\n", results.current, results.total,
+             test.name);
       _ez_premature_exit("Fatal Error occured! Exiting", pid, mem, results);
       break;
     }
