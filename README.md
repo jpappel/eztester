@@ -128,5 +128,5 @@ To use the header-only implementation replace the include in your programs entry
     * [x] static library target
     * [x] dynamic library target
     * [x] header-only target
+* [x] shell command utility
 * [ ] colorized output
-* [ ] `run_shell_script`
