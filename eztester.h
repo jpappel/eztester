@@ -6,13 +6,22 @@
 
 // possible results of a test.
 // error is always fatal
-typedef enum { TEST_PASS, TEST_WARNING, TEST_FAIL, TEST_ERROR } eztester_status;
+typedef enum {
+  TEST_PASS,
+  TEST_WARNING,
+  TEST_TIMEOUT,
+  TEST_FAIL,
+  TEST_ERROR
+} eztester_status;
 
 /* how eztester should behave when encountering a non passing test.
- *
- * EXIT_ON_WARNING implies EXIT_ON_FAIL
  */
-typedef enum { EXIT_ON_WARNING, CONTINUE_ALL, EXIT_ON_FAIL } eztester_behavior;
+typedef enum {
+  EXIT_NEVER = 0,
+  EXIT_ON_WARNING = 1,
+  EXIT_ON_TIMEOUT = 2,
+  EXIT_ON_FAIL = 4
+} eztester_behavior;
 
 // a single individual test to be ran
 typedef eztester_status(eztester_runner)();
@@ -60,6 +69,8 @@ int eztester_shell(const char *command);
 eztester_status eztester_always_pass_test();
 // always return warning
 eztester_status eztester_always_warn_test();
+// always return timeout
+eztester_status eztester_always_timeout_test();
 // always return fail
 eztester_status eztester_always_fail_test();
 // always return error

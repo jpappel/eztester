@@ -86,7 +86,7 @@ int main(int argc, char* argv[]){
     
     eztester_register(tests, (eztester_test){sample_shell_test, "Check a non existent url");
 
-    eztester_run(tests, CONTINUE_ALL);
+    eztester_run(tests, EXIT_ON_FAIL | EXIT_ON_TIMEOUT );
 
     eztester_destroy_list(tests);
     return 0;

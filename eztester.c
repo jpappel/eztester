@@ -15,8 +15,8 @@
 
 struct _ez_shared_mem {
   int work_in_queue : 1;
-  eztester_status status : 2;
-  eztester_behavior behavior : 2;
+  eztester_status status : 3;
+  eztester_behavior behavior : 3;
   size_t index;
 };
 
@@ -116,8 +116,9 @@ void _ez_worker(volatile struct _ez_shared_mem *mem,
 
     // check if worker should die
     if (mem->status == TEST_ERROR ||
-        (mem->status == TEST_FAIL && mem->behavior != CONTINUE_ALL) ||
-        (mem->status == TEST_WARNING && mem->behavior == EXIT_ON_WARNING)) {
+        (mem->status == TEST_FAIL && mem->behavior & EXIT_ON_FAIL) ||
+        (mem->status == TEST_WARNING && mem->behavior & EXIT_ON_WARNING) ||
+        (mem->status == TEST_TIMEOUT && mem->behavior & EXIT_ON_TIMEOUT)) {
       exit(1);
     }
 
@@ -199,16 +200,24 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
     case TEST_WARNING:
       printf("[%03zu/%03zu] %s Result: Warning\n", results.current,
              results.total, test.name);
-      if (behavior == EXIT_ON_WARNING) {
+      if (behavior & EXIT_ON_WARNING) {
         _ez_premature_exit("Warning occured, Exitting", pid, mem, results);
       }
       results.passed++;
       break;
 
+    case TEST_TIMEOUT:
+      printf("[%03zu/%03zu] %s Result: Timeout\n", results.current,
+             results.total, test.name);
+      if (behavior & EXIT_ON_TIMEOUT) {
+        _ez_premature_exit("Timeout occured, Exitting", pid, mem, results);
+      }
+      break;
+
     case TEST_FAIL:
       printf("[%03zu/%03zu] %s Result: Fail\n", results.current, results.total,
              test.name);
-      if (behavior != CONTINUE_ALL) {
+      if (behavior & EXIT_ON_FAIL) {
         _ez_premature_exit("Failure occured, Exitting", pid, mem, results);
       }
       break;
@@ -259,5 +268,6 @@ void eztester_log(const char *restrict format, ...) {
 
 eztester_status eztester_always_pass_test() { return TEST_PASS; }
 eztester_status eztester_always_warn_test() { return TEST_WARNING; }
+eztester_status eztester_always_timeout_test() { return TEST_TIMEOUT; }
 eztester_status eztester_always_fail_test() { return TEST_FAIL; }
 eztester_status eztester_always_error_test() { return TEST_ERROR; }
