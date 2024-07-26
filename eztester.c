@@ -110,7 +110,7 @@ void _ez_worker(volatile struct _ez_shared_mem *mem,
   while (mem->index < list->length) {
     // wait for work
     while (!mem->work_in_queue) {
-      usleep(1000 * 50);
+      usleep(50e3);
     }
     mem->status = list->tests[mem->index].runner();
 
@@ -122,6 +122,7 @@ void _ez_worker(volatile struct _ez_shared_mem *mem,
     }
 
     mem->work_in_queue = false;
+    raise(SIGSTOP);
   }
   exit(0);
 }
@@ -129,13 +130,14 @@ void _ez_worker(volatile struct _ez_shared_mem *mem,
 void _ez_chld_handler(int signum) {
   int status;
   pid_t pid;
-  _ez_child_premature_exit = 1;
 
-  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+  while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
     if (WIFEXITED(status)) {
       _ez_child_premature_exit_status = WEXITSTATUS(status);
+      _ez_child_premature_exit = 1;
     } else if (WIFSIGNALED(status)) {
       _ez_child_premature_exit_signal = WTERMSIG(status);
+      _ez_child_premature_exit = 1;
     }
   }
 }
@@ -174,17 +176,17 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
     printf("[%03zu/%03zu] Testing: %s\n", results.current, results.total,
            test.name);
     fflush(stdout);
-    if (_ez_child_premature_exit) {
-      _ez_premature_exit("Worker Process ended prematurely!", pid, mem,
-                         results);
-    }
+
+    kill(pid, SIGCONT);
+
     while (mem->work_in_queue) {
-      usleep(1000 * 50);
+      usleep(50e3);
       if (_ez_child_premature_exit) {
         _ez_premature_exit("Worker Process ended prematurely!", pid, mem,
                            results);
       }
     }
+
     status = mem->status;
 
     switch (status) {

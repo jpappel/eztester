@@ -47,7 +47,8 @@ void eztester_run(eztester_list *test_list, const eztester_behavior behavior);
 
 /* Wrapper for `system` function
  *
- * if command is null return the availability of a shell (negated result of system's behavior)
+ * if command is null return the availability of a shell (negated result of
+ * system's behavior)
  *
  * If command is not null return the exit status of the process
  */
