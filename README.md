@@ -77,12 +77,12 @@ int main(int argc, char* argv[]){
     eztester_list *tests = ezterster_create_list(2);
 
     // runners that always return the same status are provided
-    eztester_register(tests, (eztester_test){eztester_always_pass, "Always Pass"});
-    eztester_register(tests, (eztester_test){sample_test, "Sample Test"}); // our test, can be defined in a different translation unit
+    eztester_register(tests, (eztester_test){eztester_always_pass, "Always Pass", 0});
+    eztester_register(tests, (eztester_test){sample_test, "Sample Test", 0}); // our test, can be defined in a different translation unit
 
     // a list will resize on register when it doesn't have capacity
-    eztester_register(tests, (eztester_test){eztester_always_fail, "Always Fail"});
-    eztester_register(tests, (eztester_test){eztester_always_warn, "Always Warn"});
+    eztester_register(tests, (eztester_test){eztester_always_fail, "Always Fail", 0});
+    eztester_register(tests, (eztester_test){eztester_always_warn, "Always Warn", 0});
     
     eztester_register(tests, (eztester_test){sample_shell_test, "Check a non existent url");
 
@@ -94,6 +94,8 @@ int main(int argc, char* argv[]){
 ```
 
 </details>
+
+More programs are provided in [examples](examples/).
 
 ### Static
 

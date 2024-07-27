@@ -150,14 +150,16 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
   mem->work_in_queue = false;
   mem->behavior = behavior;
 
-  pid_t pid = fork();
+  pid_t pid, child_pgid;
+  pid = fork();
   if (pid < 0) {
     perror("fork");
     exit(1);
-  }
-  if (pid == 0) {
+  } else if (pid == 0) {
+    setpgrp();
     _ez_worker(mem, test_list);
   }
+  child_pgid = pid;
 
   eztester_status status;
   eztester_test test;
@@ -180,11 +182,40 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
 
     kill(pid, SIGCONT);
 
+    unsigned int elapsed_ms = 0;
     while (mem->work_in_queue) {
-      usleep(50e3);
+      usleep(1e3);
+      elapsed_ms++;
       if (_ez_child_premature_exit) {
         _ez_premature_exit("Worker Process ended prematurely!", pid, mem,
                            results);
+      }
+      if (test.max_time_ms > 0 && elapsed_ms > test.max_time_ms) {
+
+        int status;
+        signal(SIGCHLD, SIG_DFL);
+
+        // ask nicely
+        killpg(child_pgid, SIGTERM);
+        usleep(10e3);
+        if (waitpid(pid, &status, WNOHANG) == 0) {
+          // no longer ask nicely
+          killpg(child_pgid, SIGKILL);
+        }
+
+        pid = fork();
+        if (pid < 0) {
+          perror("fork");
+          exit(1);
+        } else if (pid == 0) {
+          setpgrp();
+          _ez_worker(mem, test_list);
+        }
+        child_pgid = pid;
+        signal(SIGCHLD, _ez_chld_handler);
+
+        mem->work_in_queue = false;
+        mem->status = TEST_TIMEOUT;
       }
     }
 

@@ -29,6 +29,7 @@ typedef eztester_status(eztester_runner)();
 typedef struct {
   eztester_runner *runner;
   const char *name;
+  unsigned int max_time_ms;
 } eztester_test;
 
 typedef struct {
