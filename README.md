@@ -34,8 +34,8 @@ int sum_of_integers(const int max){
 
 eztester_status sample_test(){
     const int max = 100;
-    eztester_log("Inside of Sample Test");
-    eztester_log("adding %d consectuive positive integers", max);
+    ez_log("Inside of Sample Test");
+    ez_log("adding %d consectuive positive integers", max);
 
     int actual = 0;
     for(int i = 1; i <= max; i++){
@@ -55,7 +55,7 @@ eztester_status sample_test(){
     }
 }
 
-eztester_status sample_shell_test(){
+ez_status sample_shell_test(){
     // eztester_shell is a wrapper function for `system`
     // see `eztester.h` for more info
     int status = eztester_shell("curl invalid.url");
@@ -74,21 +74,21 @@ eztester_status sample_shell_test(){
 }
 
 int main(int argc, char* argv[]){
-    eztester_list *tests = ezterster_create_list(2);
+    ez_list *tests = ezterster_create_list(2);
 
     // runners that always return the same status are provided
-    eztester_register(tests, (eztester_test){eztester_always_pass, "Always Pass", 0});
-    eztester_register(tests, (eztester_test){sample_test, "Sample Test", 0}); // our test, can be defined in a different translation unit
+    ez_register(tests, (ez_test){ez_always_pass, "Always Pass", 0});
+    ez_register(tests, (ez_test){sample_test, "Sample Test", 0}); // our test, can be defined in a different translation unit
 
     // a list will resize on register when it doesn't have capacity
-    eztester_register(tests, (eztester_test){eztester_always_fail, "Always Fail", 0});
-    eztester_register(tests, (eztester_test){eztester_always_warn, "Always Warn", 0});
+    ez_register(tests, (ez_test){ez_always_fail, "Always Fail", 0});
+    ez_register(tests, (ez_test){ez_always_warn, "Always Warn", 0});
     
-    eztester_register(tests, (eztester_test){sample_shell_test, "Check a non existent url");
+    ez_register(tests, (ez_test){sample_shell_test, "Check a non existent url");
 
-    eztester_run(tests, EXIT_ON_FAIL | EXIT_ON_TIMEOUT );
+    ez_run(tests, EXIT_ON_FAIL | EXIT_ON_TIMEOUT );
 
-    eztester_destroy_list(tests);
+    ez_destroy_list(tests);
     return 0;
 }
 ```

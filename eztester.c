@@ -15,8 +15,8 @@
 
 struct _ez_shared_mem {
   int work_in_queue : 1;
-  eztester_status status : 3;
-  eztester_behavior behavior : 3;
+  ez_status status : 3;
+  ez_behavior behavior : 3;
   size_t index;
 };
 
@@ -106,7 +106,7 @@ void _ez_premature_exit(const char *message, const pid_t worker,
 }
 
 void _ez_worker(volatile struct _ez_shared_mem *mem,
-                const eztester_list *list) {
+                const ez_list *list) {
   while (mem->index < list->length) {
     // wait for work
     while (!mem->work_in_queue) {
@@ -143,7 +143,12 @@ void _ez_chld_handler(int signum) {
   }
 }
 
-void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
+void _ez_int_handler(int signum) {
+  // TODO: catch various "kill" signals on the main process and terminate
+  // gracefully
+}
+
+void ez_run(ez_list *test_list, ez_behavior behavior) {
 
   struct _ez_shared_mem *mem = _ez_create_shared_memory();
   mem->index = 0;
@@ -161,8 +166,8 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
   }
   child_pgid = pid;
 
-  eztester_status status;
-  eztester_test test;
+  ez_status status;
+  ez_test test;
   struct _ez_tests_results results = {
       .current = 0, .passed = 0, .total = test_list->length};
 
@@ -267,28 +272,28 @@ void eztester_run(eztester_list *test_list, eztester_behavior behavior) {
   _ez_destroy_shared_memory(mem);
 }
 
-int eztester_shell(const char *command) {
+int ez_shell(const char *command) {
   int result;
   if (command == NULL) {
-    eztester_log("Recieved NULL as command, checking for shell availability");
+    ez_log("Recieved NULL as command, checking for shell availability");
     result = !system(command);
-    eztester_log("Shell %s available", (result) ? "is not" : "is");
+    ez_log("Shell %s available", (result) ? "is not" : "is");
     return result;
   }
 
-  eztester_log("Executing %s", command);
+  ez_log("Executing %s", command);
   result = system(command);
   if (result == -1) {
-    eztester_log("Error with child process");
+    ez_log("Error with child process");
     perror(command);
   } else {
-    eztester_log("Process exited with a status of %d", result);
+    ez_log("Process exited with a status of %d", result);
   }
 
   return result;
 }
 
-void eztester_log(const char *restrict format, ...) {
+void ez_log(const char *restrict format, ...) {
   va_list args;
   va_start(args, format);
   printf(">  ");
@@ -297,8 +302,8 @@ void eztester_log(const char *restrict format, ...) {
   va_end(args);
 }
 
-eztester_status eztester_always_pass_test() { return TEST_PASS; }
-eztester_status eztester_always_warn_test() { return TEST_WARNING; }
-eztester_status eztester_always_timeout_test() { return TEST_TIMEOUT; }
-eztester_status eztester_always_fail_test() { return TEST_FAIL; }
-eztester_status eztester_always_error_test() { return TEST_ERROR; }
+ez_status ez_always_pass_test() { return TEST_PASS; }
+ez_status ez_always_warn_test() { return TEST_WARNING; }
+ez_status ez_always_timeout_test() { return TEST_TIMEOUT; }
+ez_status ez_always_fail_test() { return TEST_FAIL; }
+ez_status ez_always_error_test() { return TEST_ERROR; }
