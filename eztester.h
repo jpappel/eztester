@@ -77,4 +77,4 @@ ez_status ez_always_fail_test();
 // always return error
 ez_status ez_always_error_test();
 
-#endif
+#endif // _EZTESTER_H

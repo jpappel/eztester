@@ -1,23 +1,31 @@
 #include "eztester.h"
+
+#include <assert.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-
 #include <string.h>
-
-#include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
-
-#include <stdbool.h>
+#include <unistd.h>
 
 struct _ez_shared_mem {
   int work_in_queue : 1;
   ez_status status : 3;
   ez_behavior behavior : 3;
   size_t index;
+};
+
+struct _ez_io_captures {
+  int stdout_fd;
+  int stderr_fd;
+  char stdout_path[32];
+  char stderr_path[32];
 };
 
 struct _ez_tests_results {
@@ -29,6 +37,20 @@ struct _ez_tests_results {
 volatile sig_atomic_t _ez_child_premature_exit = 0;
 volatile sig_atomic_t _ez_child_premature_exit_signal;
 volatile sig_atomic_t _ez_child_premature_exit_status = 0;
+
+struct _ez_io_captures _ez_create_io_captures() {
+  struct _ez_io_captures captures;
+  // TODO: change file paths so unique portions are the same per run
+  strncpy(captures.stdout_path, "/tmp/eztester-XXXXXX-stdout", 32);
+  strncpy(captures.stderr_path, "/tmp/eztester-XXXXXX-stderr", 32);
+
+  captures.stdout_fd = mkstemps(captures.stdout_path, 7);
+  assert(captures.stdout_fd != -1);
+
+  captures.stderr_fd = mkstemps(captures.stderr_path, 7);
+  assert(captures.stderr_fd != -1);
+  return captures;
+}
 
 struct _ez_shared_mem *_ez_create_shared_memory() {
   const size_t shm_size = sizeof(struct _ez_shared_mem);
@@ -56,9 +78,21 @@ struct _ez_shared_mem *_ez_create_shared_memory() {
   return shm_ptr;
 }
 
+void _ez_destroy_io_captures(struct _ez_io_captures captures) {
+  if (unlink(captures.stdout_path) != 0) {
+    fprintf(stderr, "Error while deleting stdout capture");
+    perror("unlink");
+  }
+
+  if (unlink(captures.stderr_path) != 0) {
+    fprintf(stderr, "Error while deleting stderr capture");
+    perror("unlink");
+  }
+}
+
 void _ez_destroy_shared_memory(struct _ez_shared_mem *mem) {
   char shr_mem_name[32];
-  sprintf(shr_mem_name, "/eztester-%d", getpid());
+  snprintf(shr_mem_name, 32, "/eztester-%d", getpid());
 
   // unmap memory
   if (munmap(mem, sizeof(struct _ez_shared_mem)) == -1) {
@@ -70,6 +104,43 @@ void _ez_destroy_shared_memory(struct _ez_shared_mem *mem) {
     perror("shm_unlink");
     exit(1);
   }
+}
+
+void _ez_clear_captured_io(struct _ez_io_captures captures) {
+  lseek(captures.stdout_fd, 0, SEEK_SET);
+  ftruncate(captures.stdout_fd, 0);
+  lseek(captures.stderr_fd, 0, SEEK_SET);
+  ftruncate(captures.stderr_fd, 0);
+}
+
+// Destructively print captured io
+void _ez_print_captured_io(struct _ez_io_captures captures) {
+  struct stat capture_info;
+  off_t offset = 0;
+
+  if (fstat(captures.stdout_fd, &capture_info) != 0) {
+    fprintf(stderr, "Error getting info on stdout capture\n");
+    perror("fstat");
+    return;
+  }
+  if (capture_info.st_size > 0) {
+    printf("=== Captured Stdout ===\n");
+    fflush(stdout);
+    sendfile(STDOUT_FILENO, captures.stdout_fd, &offset, capture_info.st_size);
+  }
+
+  if (fstat(captures.stderr_fd, &capture_info) != 0) {
+    fprintf(stderr, "Error getting info on stderr capture\n");
+    perror("fstat");
+    return;
+  }
+  if (capture_info.st_size > 0) {
+    printf("=== Captured Stderr ===\n");
+    fflush(stderr);
+    sendfile(STDOUT_FILENO, captures.stderr_fd, &offset, capture_info.st_size);
+  }
+
+  _ez_clear_captured_io(captures);
 }
 
 void _ez_print_test_results(const struct _ez_tests_results results) {
@@ -85,6 +156,7 @@ void _ez_print_test_results(const struct _ez_tests_results results) {
 
 void _ez_premature_exit(const char *message, const pid_t worker,
                         struct _ez_shared_mem *mem,
+                        struct _ez_io_captures captures,
                         const struct _ez_tests_results results) {
   fprintf(stderr, "%s\n", message);
   if (_ez_child_premature_exit) {
@@ -100,13 +172,14 @@ void _ez_premature_exit(const char *message, const pid_t worker,
   kill(worker, SIGTERM);
   wait(NULL);
   _ez_print_test_results(results);
+  _ez_print_captured_io(captures);
+  _ez_destroy_io_captures(captures);
 
   _ez_destroy_shared_memory(mem);
   exit(1);
 }
 
-void _ez_worker(volatile struct _ez_shared_mem *mem,
-                const ez_list *list) {
+int _ez_worker(volatile struct _ez_shared_mem *mem, const ez_list *list) {
   while (mem->index < list->length) {
     // wait for work
     while (!mem->work_in_queue) {
@@ -119,13 +192,13 @@ void _ez_worker(volatile struct _ez_shared_mem *mem,
         (mem->status == TEST_FAIL && mem->behavior & EXIT_ON_FAIL) ||
         (mem->status == TEST_WARNING && mem->behavior & EXIT_ON_WARNING) ||
         (mem->status == TEST_TIMEOUT && mem->behavior & EXIT_ON_TIMEOUT)) {
-      exit(1);
+      return 1;
     }
 
     mem->work_in_queue = false;
     raise(SIGSTOP);
   }
-  exit(0);
+  return 0;
 }
 
 void _ez_chld_handler(int signum) {
@@ -150,6 +223,7 @@ void _ez_int_handler(int signum) {
 
 void ez_run(ez_list *test_list, ez_behavior behavior) {
 
+  struct _ez_io_captures captures = _ez_create_io_captures();
   struct _ez_shared_mem *mem = _ez_create_shared_memory();
   mem->index = 0;
   mem->work_in_queue = false;
@@ -162,7 +236,16 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
     exit(1);
   } else if (pid == 0) {
     setpgrp();
-    _ez_worker(mem, test_list);
+    fflush(stdout);
+    fflush(stderr);
+    dup2(captures.stdout_fd, STDOUT_FILENO);
+    dup2(captures.stderr_fd, STDERR_FILENO);
+    setvbuf(stdout, NULL, _IOLBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    int exit_code = _ez_worker(mem, test_list);
+    fflush(stdout);
+    fflush(stderr);
+    exit(exit_code);
   }
   child_pgid = pid;
 
@@ -175,6 +258,7 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
   signal(SIGCHLD, _ez_chld_handler);
 
   for (size_t i = 0; i < test_list->length; i++) {
+    // TODO: refactor to waitpid on child
     test = test_list->tests[i];
 
     results.current = i + 1;
@@ -193,7 +277,7 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
       elapsed_ms++;
       if (_ez_child_premature_exit) {
         _ez_premature_exit("Worker Process ended prematurely!", pid, mem,
-                           results);
+                           captures, results);
       }
       if (test.max_time_ms > 0 && elapsed_ms > test.max_time_ms) {
 
@@ -214,7 +298,16 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
           exit(1);
         } else if (pid == 0) {
           setpgrp();
-          _ez_worker(mem, test_list);
+          fflush(stdout);
+          fflush(stderr);
+          dup2(captures.stdout_fd, STDOUT_FILENO);
+          dup2(captures.stderr_fd, STDERR_FILENO);
+          setvbuf(stdout, NULL, _IOLBF, 0);
+          setvbuf(stderr, NULL, _IONBF, 0);
+          int exit_code = _ez_worker(mem, test_list);
+          fflush(stdout);
+          fflush(stderr);
+          exit(exit_code);
         }
         child_pgid = pid;
         signal(SIGCHLD, _ez_chld_handler);
@@ -237,7 +330,8 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
       printf("[%03zu/%03zu] %s Result: Warning\n", results.current,
              results.total, test.name);
       if (behavior & EXIT_ON_WARNING) {
-        _ez_premature_exit("Warning occured, Exitting", pid, mem, results);
+        _ez_premature_exit("Warning occured, Exitting", pid, mem, captures,
+                           results);
       }
       results.passed++;
       break;
@@ -246,7 +340,8 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
       printf("[%03zu/%03zu] %s Result: Timeout\n", results.current,
              results.total, test.name);
       if (behavior & EXIT_ON_TIMEOUT) {
-        _ez_premature_exit("Timeout occured, Exitting", pid, mem, results);
+        _ez_premature_exit("Timeout occured, Exitting", pid, mem, captures,
+                           results);
       }
       break;
 
@@ -254,21 +349,27 @@ void ez_run(ez_list *test_list, ez_behavior behavior) {
       printf("[%03zu/%03zu] %s Result: Fail\n", results.current, results.total,
              test.name);
       if (behavior & EXIT_ON_FAIL) {
-        _ez_premature_exit("Failure occured, Exitting", pid, mem, results);
+        _ez_premature_exit("Failure occured, Exitting", pid, mem, captures,
+                           results);
       }
+      _ez_print_captured_io(captures);
       break;
 
     case TEST_ERROR:
       printf("[%03zu/%03zu] %s Result: Error\n", results.current, results.total,
              test.name);
-      _ez_premature_exit("Fatal Error occured! Exiting", pid, mem, results);
+      _ez_premature_exit("Fatal Error occured! Exiting", pid, mem, captures,
+                         results);
       break;
     }
+
+    _ez_clear_captured_io(captures);
   }
 
   signal(SIGCHLD, SIG_DFL);
   _ez_print_test_results(results);
 
+  _ez_destroy_io_captures(captures);
   _ez_destroy_shared_memory(mem);
 }
 

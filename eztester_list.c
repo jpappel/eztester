@@ -43,13 +43,10 @@ void ez_register(ez_list *test_list, const ez_test new_test) {
   test_list->tests[test_list->length++] = new_test;
 }
 
-void ez_clear_list(ez_list *test_list) {
-  free(test_list->tests);
-  test_list->length = 0;
-  test_list->capacity = 0;
-}
+void ez_clear_list(ez_list *test_list) { test_list->length = 0; }
 
-void ez_destroy_list(ez_list *test_list) {
-  ez_clear_list(test_list);
-  free(test_list);
+void ez_destroy_list(ez_list *list) {
+  ez_clear_list(list);
+  list->capacity = 0;
+  free(list->tests);
 }
